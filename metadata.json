@@ -1,0 +1,8 @@
+{
+  "name": "HirePilot ATS",
+  "description": "The Intelligent Recruitment Workspace. Host on hirepilotbysahil.vercel.app for seamless hiring pipeline management.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
