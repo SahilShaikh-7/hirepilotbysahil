@@ -28,6 +28,37 @@ const apiRequest = async (method: string, path: string, body?: any) => {
 // Mock Supabase Auth listeners
 let authListener: ((event: string, session: any) => void) | null = null;
 
+const checkGoogleRedirect = async () => {
+  const hash = window.location.hash || '';
+  const search = window.location.search || '';
+  let idToken = '';
+  
+  if (hash.includes('id_token=')) {
+    const params = new URLSearchParams(hash.replace(/^#\/?/, ''));
+    idToken = params.get('id_token') || '';
+  } else if (search.includes('id_token=')) {
+    const params = new URLSearchParams(search);
+    idToken = params.get('id_token') || '';
+  }
+  
+  if (idToken) {
+    try {
+      window.history.replaceState(null, '', window.location.origin + window.location.pathname + '#/');
+      const data = await apiRequest('POST', '/auth/google', { idToken });
+      localStorage.setItem('hirepilot_token', data.token);
+      localStorage.setItem('hirepilot_user', JSON.stringify(data.user));
+      if (authListener) {
+        authListener('SIGNED_IN', { user: data.user, access_token: data.token });
+      }
+      window.location.reload();
+    } catch (err) {
+      console.error('Failed to authenticate Google redirect token:', err);
+    }
+  }
+};
+
+setTimeout(checkGoogleRedirect, 100);
+
 export const supabase = {
   auth: {
     getSession: async () => {
@@ -497,31 +528,17 @@ export const logActivity = async (action: string, details: string, type: 'info' 
 
 // Auth helper functions
 export const signInWithGoogle = async () => {
-  // Mock Google sign in by opening Google OAuth popup or credential collection.
-  // In development, we can prompt for custom testing credentials or redirect to auth provider.
-  // Let's implement Google sign in via prompt to type Google JWT token or simulated auth for local development.
-  const name = prompt("Please enter your name for Simulated Google Auth:", "Google Admin User");
-  const email = prompt("Please enter your Google Email for login:", "sahil68shaikh68@gmail.com");
+  const client_id = '937166051446-rjv3aief1ms66cg2nvel6u9sdah703n4.apps.googleusercontent.com';
+  const redirect_uri = window.location.origin + '/';
   
-  if (!name || !email) {
-    throw new Error("Simulated Google Auth cancelled");
-  }
-
-  // Generate a mock JWT representing Google's token payload
-  const mockHeader = btoa(JSON.stringify({ alg: "HS256", typ: "JWT" }));
-  const mockPayload = btoa(JSON.stringify({ email, name, picture: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random` }));
-  const mockToken = `${mockHeader}.${mockPayload}.signature`;
-
-  const data = await apiRequest('POST', '/auth/google', { idToken: mockToken });
+  const oauthUrl = `https://accounts.google.com/o/oauth2/v2/auth?` + 
+    `client_id=${encodeURIComponent(client_id)}` +
+    `&redirect_uri=${encodeURIComponent(redirect_uri)}` +
+    `&response_type=id_token` +
+    `&scope=${encodeURIComponent('openid email profile')}` +
+    `&nonce=hirepilot_nonce_` + Math.random().toString(36).substring(2);
   
-  localStorage.setItem('hirepilot_token', data.token);
-  localStorage.setItem('hirepilot_user', JSON.stringify(data.user));
-
-  if (authListener) {
-    authListener('SIGNED_IN', { user: data.user, access_token: data.token });
-  }
-
-  return data;
+  window.location.href = oauthUrl;
 };
 
 export const signUpWithEmail = async (email: string, password: string, fullName: string) => {
