@@ -49,10 +49,15 @@ app.get('/api/health', (req, res) => {
 // Setup for production deployment serving client build if needed
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-if (process.env.NODE_ENV === 'production') {
+if (process.env.NODE_ENV === 'production' && process.env.SERVE_FRONTEND === 'true') {
   app.use(express.static(path.join(__dirname, '../dist')));
   app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, '../dist/index.html'));
+  });
+} else {
+  // Graceful fallback for non-API routes in standalone API mode
+  app.get('*', (req, res) => {
+    res.status(404).json({ message: 'HirePilot API Server is active. Please access the application via your Vercel URL.' });
   });
 }
 
